@@ -15,20 +15,21 @@ def load_data(url):
     return d, raw
 
 
-min_sup = 3 # 최소 지지도
-i_url = "./dummy.csv" # 인풋 파일 경로
+def extract(min_sup=3, i_url="./dummy.csv"):  # 최소 지지도, 인풋 파일 경로
 
-data, raw = load_data(i_url)
+    data, raw = load_data(i_url)
 
-te = TransactionEncoder()
+    te = TransactionEncoder()
 
-te_ary = te.fit(data).transform(data)
-df = pd.DataFrame(te_ary, columns=te.columns_)
+    te_ary = te.fit(data).transform(data)
+    df = pd.DataFrame(te_ary, columns=te.columns_)
 
-# 자주 나오는 키워드 추출
-frequent_items = apriori(df, min_support=0.45, use_colnames=True)
-frequent_items['length'] = frequent_items['itemsets'].apply(lambda x: len(x))
+    # 자주 나오는 키워드 추출
+    frequent_items = apriori(df, min_support=0.45, use_colnames=True)
+    frequent_items['length'] = frequent_items['itemsets'].apply(lambda x: len(x))
+    return frequent_items
 
+"""
 # 키워드간 관련도
 # from mlxtend.frequent_patterns import association_rules
 # print(association_rules(frequent_items, metric="confidence", min_threshold=0.3))
@@ -65,5 +66,18 @@ for line in meta.values:
             word = meta["word"][idx]
         except:
             continue
+"""
+if __name__ == "__main__":
+    result = extract()
 
+    wunch_input = []
+    for line in result[result["length"] > 2]['itemsets']:
+        if len(line) < 1:
+            pass
+        temp = ""
+        for word in line:
+            temp = temp + " " + word
+        wunch_input.append(temp[1:])
+    print(wunch_input)
+    exit(0)
 
