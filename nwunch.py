@@ -60,10 +60,26 @@ def swunch(s1, s2):
                 seq1 = "|" + seq1
             break
 
-    print(seq1, seq2)
+    return seq1, seq2
 
 
 if __name__ == "__main__":
     #swunch("GATTACA", "GCATGCU")
-    swunch("--- /-------------------", "------------------HTTP/1.0")
+    keys = "GET / HTTP/1.0"
+    kl = keys.split(" ")
+    print(swunch(keys, "GET /index.html HTTP/1.0"))
+    s1, s2 = swunch(keys, "GET /webtoon/op/ff455fe7f3cf441c9b5ea13500c7e3d09b6240c8 HTTP/1.1")
+    print(s1)
+
+    rule = []
+    i = 0
+    for k in kl:
+        if len(rule) > 0:
+            rule.append({"len": s1.find(k) - rule[i - 1]["len"], "type": i})
+            rule.append({"len": s2.find(k) + len(k) + 1, "type": k})
+        else:
+            rule.append({"len": s1.find(k) + len(k) + 1, "type": k})
+        i += 1
+
+    print(rule)
     exit(0)

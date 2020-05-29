@@ -3,6 +3,7 @@ import pandas as pd
 # 직접 구현
 # Local alignment - alignment between highly relevant targets
 
+
 def swaterman(s1, s2):
     x = len(s1) + 1  # keyword
     y = len(s2) + 1  # target
@@ -74,5 +75,10 @@ if __name__ == "__main__":
     swaterman("GET", "GET /index.html HTTP/1.0")
     swaterman("HTTP/1.0", "GET /index.html HTTP/1.0")
     swaterman(" /", "GET /index.html HTTP/1.0")
+    #swaterman("POST", "GET /index.html HTTP/1.0")
+    s1 = "GET /index.html HTTP/1.0"
+    s2 = "POST"
+
+    print(s1.find(s2))
     #
     exit(0)
