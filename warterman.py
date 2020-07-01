@@ -72,10 +72,11 @@ def swaterman(s1, s2):
 
 if __name__ == "__main__":
     #swaterman("GGTTGACTA", "TGTTACGG")
-    swaterman("GET", "GET /index.html HTTP/1.0")
-    swaterman("HTTP/1.0", "GET /index.html HTTP/1.0")
-    swaterman(" /", "GET /index.html HTTP/1.0")
+    #swaterman("GET", "GET /index.html HTTP/1.0")
+    #swaterman("HTTP/1.0", "GET /index.html HTTP/1.0")
+    #swaterman(" /", "GET /index.html HTTP/1.0")
     #swaterman("POST", "GET /index.html HTTP/1.0")
+    swaterman("GET  / HTTP/1.0", "GET /index.html HTTP/1.0")
     s1 = "GET /index.html HTTP/1.0"
     s2 = "POST"
 

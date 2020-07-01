@@ -15,7 +15,7 @@ def load_data(url):
     return d, raw
 
 
-def extract(min_sup=3, i_url="./dummy.csv"):  # 최소 지지도, 인풋 파일 경로
+def extract(min_sup=0.45, i_url="./dummy.csv"):  # 최소 지지도, 인풋 파일 경로
 
     data, raw = load_data(i_url)
 
@@ -25,10 +25,11 @@ def extract(min_sup=3, i_url="./dummy.csv"):  # 최소 지지도, 인풋 파일 
     df = pd.DataFrame(te_ary, columns=te.columns_)
 
     # 자주 나오는 키워드 추출
-    frequent_items = apriori(df, min_support=0.45, use_colnames=True)
+    frequent_items = apriori(df, min_support=min_sup, use_colnames=True)
     frequent_items['length'] = frequent_items['itemsets'].apply(lambda x: len(x))
 
     wunch_input = []
+    print(frequent_items[frequent_items["length"] > 2]['itemsets'])
     for line in frequent_items[frequent_items["length"] > 2]['itemsets']:
         if len(line) < 1:
             pass

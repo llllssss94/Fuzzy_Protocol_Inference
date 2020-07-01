@@ -26,7 +26,7 @@ def swunch(s1, s2):
                 score = max(mtx[xi][yi] - mismatch, mtx[xi][yi + 1] - gap, mtx[xi + 1][yi] - gap)
             mtx[xi + 1][yi + 1] = score
 
-    print(mtx)
+    # print(pd.DataFrame(mtx))
 
     # choose best sequence via total score
     seq1 = ""
@@ -35,7 +35,7 @@ def swunch(s1, s2):
 
     while True:
         t = np.argmax([mtx[tx - 1][ty - 1], mtx[tx - 1][ty], mtx[tx][ty - 1]]) # diagonal first, vertical, horizontal
-        print(tx, ty, " -- ", s2[ty - 1], " | ", t)
+        # print(tx, ty, " -- ", s2[ty - 1], " | ", t)
 
         if t == 0:  # diagonal
             seq1 = s1[tx - 1] + seq1
@@ -59,12 +59,16 @@ def swunch(s1, s2):
             for i in range(0, tx):
                 seq1 = "|" + seq1
             break
-
+    print(seq1, seq2)
     return seq1, seq2
 
 
 if __name__ == "__main__":
-    #swunch("GATTACA", "GCATGCU")
+    #swunch("ABCDEEEF", "ABCDEFFF")
+    keys = "GET / HTTP/1.0"
+    kl = keys.split(" ")
+    print(swunch(keys, "GET /index.html HTTP/1.0"))
+    """
     keys = "GET / HTTP/1.0"
     kl = keys.split(" ")
     print(swunch(keys, "GET /index.html HTTP/1.0"))
@@ -82,4 +86,6 @@ if __name__ == "__main__":
         i += 1
 
     print(rule)
+    """
     exit(0)
+
