@@ -15,7 +15,7 @@ def load_data(url):
     return d, raw
 
 
-def extract(min_sup=0.45, i_url="./dummy.csv"):  # 최소 지지도, 인풋 파일 경로
+def extract(min_sup=0.4, i_url="./data/chat_server.csv", min_num=1):  # 최소 지지도, 인풋 파일 경로, 최소 조합 수
 
     data, raw = load_data(i_url)
 
@@ -29,8 +29,8 @@ def extract(min_sup=0.45, i_url="./dummy.csv"):  # 최소 지지도, 인풋 파�
     frequent_items['length'] = frequent_items['itemsets'].apply(lambda x: len(x))
 
     wunch_input = []
-    print(frequent_items[frequent_items["length"] > 2]['itemsets'])
-    for line in frequent_items[frequent_items["length"] > 2]['itemsets']:
+    # print("APRIORI", frequent_items[frequent_items["length"] > min_num]['itemsets'])
+    for line in frequent_items[frequent_items["length"] == 1]['itemsets']:
         if len(line) < 1:
             pass
         temp = ""
