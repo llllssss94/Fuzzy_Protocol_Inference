@@ -135,15 +135,26 @@ def get_flow(path, src_ip, dst_ip):
     return (np.array([avg_skn, avg_skl, avg_pay, avg_fsa, avg_ivl])).T   # [avg_ivl, avg_cnt, avg_pay, pcl]
 
 
-def membership_fucntion(data=pd.DataFrame([]), cols="", sigma=1.0):
+def membership_function(data=pd.DataFrame([]), cols="", sigma=1.0):
 
     # find bound values from traffic flows in same traffic type data
     # find bound values from traffic flows in same traffic type data
-    print(data[cols].min(), "~", data[cols].max())
 
     lbl = ""
+    if cols == "CON":
+        x_con = np.arange(0, 100.5, 0.5)
 
-    if cols == "SKN":
+        conf_mal = fuzz.trapmf(x_con, [0, 20, 40, 60])
+        conf_nor = fuzz.trapmf(x_con, [40, 60, 80, 100])
+        """
+        plt.plot(x_con, conf_mal, 'r', linewidth=1.5, label='mal')
+        plt.plot(x_con, conf_nor, 'g', linewidth=1.5, label='nor')
+
+        plt.show()
+        """
+
+        return [x_con, conf_mal, conf_nor]
+    elif cols == "SKN":
         lbl = "Static Keyword Number"
     elif cols == "SKL":
         lbl = "Static Keyword Length"
@@ -154,9 +165,12 @@ def membership_fucntion(data=pd.DataFrame([]), cols="", sigma=1.0):
     else:
         lbl = "Packet Interval Average"
 
+    print(data[cols].min(), "~", data[cols].max())
+
     chat_pia = data[cols]
 
-    """ for quantile method
+    """
+    # for quantile method
     # divide data
     low_data = chat_pia[chat_pia <= np.quantile(chat_pia, 0.25)].to_numpy()  # 1-quartile
     match_data = chat_pia[chat_pia <= np.quantile(chat_pia, 0.75)][chat_pia >= np.quantile(chat_pia, 0.25)].to_numpy()
@@ -173,9 +187,9 @@ def membership_fucntion(data=pd.DataFrame([]), cols="", sigma=1.0):
 
     raw_data = (chat_pia.sort_values()).to_numpy()
 
+    """
     fig, ((ax0, ax1, ax4), (ax3, ax2, ax5)) = plt.subplots(nrows=2, ncols=3, figsize=(24, 10))
 
-    """
     # Gaussian with 1-quantile average 3-quantile
     low = fuzz.gaussmf(low_data, low_data.mean(), low_data.std())
     match = fuzz.gaussmf(match_data, match_data.mean(), match_data.std())
@@ -195,6 +209,7 @@ def membership_fucntion(data=pd.DataFrame([]), cols="", sigma=1.0):
     match_6 = fuzz.gaussmf(raw_data, mean, st)
     high_6 = fuzz.gaussmf(raw_data, max, st)
 
+    """
     ax3.plot(raw_data, low_6, 'b', linewidth=1.5, label='Low')
     ax3.plot(raw_data, match_6, 'g', linewidth=1.5, label='Match')
     ax3.plot(raw_data, high_6, 'r', linewidth=1.5, label='High')
@@ -203,7 +218,7 @@ def membership_fucntion(data=pd.DataFrame([]), cols="", sigma=1.0):
     ax3.set_ylabel('Estimated Membership Degree')
     ax3.legend()
 
-    """
+    
     # Triangular with min, max and average
     low_2 = fuzz.trimf(raw_data, [min, min, mean])
     match_2 = fuzz.trimf(raw_data, [min, mean, max])  # average
@@ -264,37 +279,118 @@ def membership_fucntion(data=pd.DataFrame([]), cols="", sigma=1.0):
     ax5.set_ylabel('Estimated Membership Degree')
     ax5.legend()
     """
-    x_con = np.arange(0, 100.5, 0.5)
 
-    conf_mal = fuzz.trapmf(x_con, [0, 0, 10, 100])
-    conf_nor = fuzz.trapmf(x_con, [0, 90, 100, 100])
-
-    plt.plot(x_con, conf_mal, 'r', linewidth=1.5, label='mal')
-    plt.plot(x_con, conf_nor, 'g', linewidth=1.5, label='nor')
-
-    plt.show()
-
-    return [low_6, match_6, high_6, raw_data, [conf_mal, conf_nor]]
+    return [low_6, match_6, high_6, raw_data]
 
 
-def fuzzifier(data=pd.DataFrame([]), sigma=1.0):
-    mf_skn = membership_fucntion(data=chat_flow, cols="SKN", sigma=10)
-    mf_skl = membership_fucntion(data=chat_flow, cols="SKL", sigma=10)
-    mf_psa = membership_fucntion(data=chat_flow, cols="PSA", sigma=10)
-    mf_fsa = membership_fucntion(data=chat_flow, cols="FSA", sigma=10)
-    mf_pia = membership_fucntion(data=chat_flow, cols="PIA", sigma=10)
+def make_membership(data=pd.DataFrame([]), sigma=1.0):
+    mf_skn = membership_function(data=data, cols="SKN", sigma=sigma)
+    mf_skl = membership_function(data=data, cols="SKL", sigma=sigma)
+    mf_psa = membership_function(data=data, cols="PSA", sigma=sigma)
+    mf_fsa = membership_function(data=data, cols="FSA", sigma=sigma)
+    mf_pia = membership_function(data=data, cols="PIA", sigma=sigma)
 
     return [mf_skn, mf_skl, mf_psa, mf_fsa, mf_pia]
 
-def defuzzifier(mf, value):
-    mf
+def fuzzy_inference_engine(skn, skl, psa, fsa, pia, mf, con_mf):
+    # 4.49, 3.64, 90, 85, 250
+    x1, x2, x3, x4, x5 = (skn, skl, psa, fsa, pia)  # SKN, SKL, PSA, FSA, PIA input
 
+    try:
+        skn_lo = fuzz.interp_membership(mf[0][3], mf[0][0], x1)
+        skn_mt = fuzz.interp_membership(mf[0][3], mf[0][1], x1)
+        skn_hi = fuzz.interp_membership(mf[0][3], mf[0][2], x1)
 
+        skl_lo = fuzz.interp_membership(mf[1][3], mf[1][0], x2)
+        skl_mt = fuzz.interp_membership(mf[1][3], mf[1][1], x2)
+        skl_hi = fuzz.interp_membership(mf[1][3], mf[1][2], x2)
 
-    confidence = 0
+        psa_lo = fuzz.interp_membership(mf[2][3], mf[2][0], x3)
+        psa_mt = fuzz.interp_membership(mf[2][3], mf[2][1], x3)
+        psa_hi = fuzz.interp_membership(mf[2][3], mf[2][2], x3)
+
+        fsa_lo = fuzz.interp_membership(mf[3][3], mf[3][0], x4)
+        fsa_mt = fuzz.interp_membership(mf[3][3], mf[3][1], x4)
+        fsa_hi = fuzz.interp_membership(mf[3][3], mf[3][2], x4)
+
+        pia_lo = fuzz.interp_membership(mf[4][3], mf[4][0], x5)
+        pia_mt = fuzz.interp_membership(mf[4][3], mf[4][1], x5)
+        pia_hi = fuzz.interp_membership(mf[4][3], mf[4][2], x5)
+
+        hi = [skn_hi, skl_hi, psa_hi, fsa_hi, pia_hi]
+        mt = [skn_mt, skl_mt, psa_mt, fsa_mt, pia_mt]
+        lo = [skn_lo, skl_lo, psa_lo, fsa_lo, pia_lo]
+
+        # if pia, skl, skn, psa, fsa is match then confidence is near 90
+        rule1 = reduce(lambda x, y: x * y, mt)
+        con_nor = np.fmin(np.multiply(rule1, 0.99), con_mf[2])
+
+        # if pia, skl, skn, psa, fsa is high then confidence or pia, skl, skn, psa, fsa is low is near 10
+        rule2 = np.fmax(reduce(lambda x, y: x * y, hi), reduce(lambda x, y: x * y, lo))
+        con_mal = np.fmin(np.multiply(rule2, 0.01), con_mf[1])
+
+        """
+        # Visualize this
+        fig, ax0 = plt.subplots(figsize=(8, 8))
+
+        con0 = np.zeros_like(con_mf[0])
+        ax0.fill_between(con_mf[0], con0, con_nor, facecolor='b', alpha=0.7)
+        ax0.plot(con_mf[0], con_mf[1], 'b', linewidth=0.5, linestyle='--', )
+        ax0.fill_between(con_mf[0], con0, con_mal, facecolor='g', alpha=0.7)
+        ax0.plot(con_mf[0], con_mf[2], 'g', linewidth=0.5, linestyle='--')
+        ax0.set_title('Output membership activity')
+    
+        # Turn off top/right axes
+        for ax in (ax0,):
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.get_xaxis().tick_bottom()
+            ax.get_yaxis().tick_left()
+
+        plt.tight_layout()
+
+        plt.show()
+     
+        aggregate = np.fmax(con_mal, con_nor)
+        print("CONFIDENCE(CENTROID)", fuzz.defuzz(con_mf[0], aggregate, 'centroid'))
+        print("CONFIDENCE(MEAN)", fuzz.defuzz(con_mf[0], aggregate, 'mom'))
+        print("CONFIDENCE(BISECTOR)", fuzz.defuzz(con_mf[0], aggregate, 'bisector'))
+        print("CONFIDENCE(MIN)", fuzz.defuzz(con_mf[0], aggregate, 'som'))
+        print("CONFIDENCE(MAX)", fuzz.defuzz(con_mf[0], aggregate, 'lom'))
+        """
+
+        # WEIGHTED AVERAGE DEFUZZIFICATION METHOD
+        cf_1 = fuzz.defuzz(con_mf[0], con_mal, 'centroid')
+        cf_2 = fuzz.defuzz(con_mf[0], con_nor, 'centroid')
+
+        confidence = np.divide(max(con_mal) * cf_1 + max(con_nor) * cf_2, max(con_mal) + max(con_nor))
+        #print("CONFIDENCE(WEIGHTED AVERAGE)", confidence)
+
+        # conf_activation = fuzz.interp_membership(con_mf[0], np.fmax(cf_1, cf_2), confidence)
+
+        """
+        fig1, ax1 = plt.subplots(figsize=(8, 8))
+
+        ax1.plot(con_mf[0], con_mf[1], 'b', linewidth=0.5, linestyle='--', )
+        ax1.plot(con_mf[0], con_mf[2], 'g', linewidth=0.5, linestyle='--')
+        ax1.fill_between(con_mf[0], con0, aggregate, facecolor='Orange', alpha=0.7)
+        ax1.plot([confidence, confidence], [0, conf_activation], 'k', linewidth=1.5, alpha=0.9)
+        ax1.set_title('Aggregated membership and result (line)')
+
+        # Turn off top/right axes
+        for ax in (ax1,):
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.get_xaxis().tick_bottom()
+            ax.get_yaxis().tick_left()
+
+        plt.tight_layout()
+        plt.show()
+        """
+    except:
+        return 0
 
     return confidence
-
 
 if __name__ == "__main__":
     low_flow = pd.DataFrame(get_flow("./data/30sec_server.csv", '10.0.0.1', '10.0.0.2'),
@@ -306,33 +402,47 @@ if __name__ == "__main__":
     chat_flow = pd.DataFrame(get_flow("./data/chat_server.csv", '10.0.0.1', '10.0.0.2'),
                              columns=["SKN", "SKL", "PSA", "FSA", "PIA"])
 
-    mf = fuzzifier(data=chat_flow, sigma=10)
+    mf = make_membership(data=low_flow, sigma=3)
+    con_mf = membership_function(data=low_flow, cols="CON")
 
-    """
-    confidence['malicious'] = fuzz.trimf(confidence.universe, [])
-    confidence['mboundary'] = 
-    confidence['match'] = 
-    """
+    # Experiment
+    print("\nChatting Flow ---------------------------------------------------------")
+    chat_count = 0
+    chat_conf = []
+    chat_len = chat_flow.values.__len__()
+    for flow in chat_flow.values:
+        conf = fuzzy_inference_engine(flow[0], flow[1], flow[2], flow[3], flow[4], mf, con_mf)
+        if conf > 0:
+            chat_conf.append(conf)
+            chat_count += 1
+    print("Declare - ", chat_count)
+    print("Rate - ", chat_count/chat_len)
+    print("Confidence - ", np.average(chat_conf))
 
-    # x1, x2, x3, x4, x5 =
+    print("\nLow Flow ---------------------------------------------------------")
+    low_count = 0
+    low_conf = []
+    low_len = low_flow.values.__len__()
+    for flow in low_flow.values:
+        conf = fuzzy_inference_engine(flow[0], flow[1], flow[2], flow[3], flow[4], mf, con_mf)
+        if conf > 0:
+            low_conf.append(conf)
+            low_count += 1
+    print("Declare - ", low_count)
+    print("Rate - ", low_count / low_len)
+    print("Confidence - ", np.average(low_conf))
 
-    # calculate membership degree
-    md = [fuzz.interp_membership(mf[0][3], mf[0][1], 4.7),
-          fuzz.interp_membership(mf[1][3], mf[1][1], 3.67),
-          fuzz.interp_membership(mf[2][3], mf[2][1], 120),
-          fuzz.interp_membership(mf[3][3], mf[3][1], 85),
-          fuzz.interp_membership(mf[4][3], mf[4][1], 300)]
-
-    print(md)
-
-    rule1 = reduce(lambda x, y: x * y, md)
-
-    defuzzifier(mf[5], rule1)
+    print("\nHigh Flow ---------------------------------------------------------")
+    high_count = 0
+    high_conf = []
+    high_len = high_flow.values.__len__()
+    for flow in high_flow.values:
+        conf = fuzzy_inference_engine(flow[0], flow[1], flow[2], flow[3], flow[4], mf, con_mf)
+        if conf > 0:
+            high_conf.append(conf)
+            high_count += 1
+    print("Declare - ", high_count)
+    print("Rate - ", high_count / high_len)
+    print("Confidence - ", np.average(high_conf))
 
     exit(0)
-
-
-"""
-    sns.scatterplot(x=range(len(full_data['interval'])), y=full_data['interval'])
-    plt.show()
-"""
