@@ -172,6 +172,7 @@ def membership_function(data=pd.DataFrame([]), cols="", sigma=1.0):
     """
     # for quantile method
     # divide data
+    chat_pia = chat_pia.sort_values()
     low_data = chat_pia[chat_pia <= np.quantile(chat_pia, 0.25)].to_numpy()  # 1-quartile
     match_data = chat_pia[chat_pia <= np.quantile(chat_pia, 0.75)][chat_pia >= np.quantile(chat_pia, 0.25)].to_numpy()
     high_data = chat_pia[chat_pia > np.quantile(chat_pia, 0.75)].to_numpy()  # 3-quartile
@@ -189,7 +190,7 @@ def membership_function(data=pd.DataFrame([]), cols="", sigma=1.0):
 
     """
     fig, ((ax0, ax1, ax4), (ax3, ax2, ax5)) = plt.subplots(nrows=2, ncols=3, figsize=(24, 10))
-
+    
     # Gaussian with 1-quantile average 3-quantile
     low = fuzz.gaussmf(low_data, low_data.mean(), low_data.std())
     match = fuzz.gaussmf(match_data, match_data.mean(), match_data.std())
@@ -278,6 +279,8 @@ def membership_function(data=pd.DataFrame([]), cols="", sigma=1.0):
     ax5.set_xlabel(lbl)
     ax5.set_ylabel('Estimated Membership Degree')
     ax5.legend()
+
+    plt.show()
     """
 
     return [low_6, match_6, high_6, raw_data]
@@ -402,8 +405,10 @@ if __name__ == "__main__":
     chat_flow = pd.DataFrame(get_flow("./data/chat_server.csv", '10.0.0.1', '10.0.0.2'),
                              columns=["SKN", "SKL", "PSA", "FSA", "PIA"])
 
-    mf = make_membership(data=low_flow, sigma=3)
-    con_mf = membership_function(data=low_flow, cols="CON")
+    low_flow_part = low_flow
+
+    mf = make_membership(data=low_flow_part, sigma=10)
+    con_mf = membership_function(data=low_flow_part, cols="CON")
 
     # Experiment
     print("\nChatting Flow ---------------------------------------------------------")
@@ -414,7 +419,8 @@ if __name__ == "__main__":
         conf = fuzzy_inference_engine(flow[0], flow[1], flow[2], flow[3], flow[4], mf, con_mf)
         if conf > 0:
             chat_conf.append(conf)
-            chat_count += 1
+            if conf > 65:
+                chat_count += 1
     print("Declare - ", chat_count)
     print("Rate - ", chat_count/chat_len)
     print("Confidence - ", np.average(chat_conf))
@@ -427,7 +433,8 @@ if __name__ == "__main__":
         conf = fuzzy_inference_engine(flow[0], flow[1], flow[2], flow[3], flow[4], mf, con_mf)
         if conf > 0:
             low_conf.append(conf)
-            low_count += 1
+            if conf > 65:
+                low_count += 1
     print("Declare - ", low_count)
     print("Rate - ", low_count / low_len)
     print("Confidence - ", np.average(low_conf))
@@ -440,9 +447,80 @@ if __name__ == "__main__":
         conf = fuzzy_inference_engine(flow[0], flow[1], flow[2], flow[3], flow[4], mf, con_mf)
         if conf > 0:
             high_conf.append(conf)
-            high_count += 1
+            if conf > 65:
+                high_count += 1
     print("Declare - ", high_count)
     print("Rate - ", high_count / high_len)
     print("Confidence - ", np.average(high_conf))
+
+    f = open("10_high_conf.txt", "a+")
+
+    for line in high_conf:
+        f.write(str(line))
+        f.write(",")
+
+    f.close()
+
+    print("정탐률 - ", low_count / low_len)
+    print("오탐률 - ", (chat_count + high_count) / (chat_len + high_len))
+
+    """ threshold transition
+    fp_rate = []
+    threshold_list = np.linspace(50, 69.7, num=340)  # 60, 69.7, num=97
+
+    for thr in threshold_list:
+        chat_count = 0
+        for cc in chat_conf:
+            if cc > thr:
+                chat_count += 1
+
+        low_count = 0
+        for lc in low_conf:
+            if lc > thr:
+                low_count += 1
+
+        high_count = 0
+        for hc in high_conf:
+            if hc > thr:
+                high_count += 1
+
+        fp_rate.append((chat_count + high_count) / (chat_len + high_len))
+        print("정탐률 - ", low_count / low_len)
+        print("오탐률 - ", (chat_count + high_count) / (chat_len + high_len))
+    """
+
+    fig1, ax1 = plt.subplots(figsize=(8, 4))
+    ax1.plot(np.arange(0, high_conf.__len__(), step=1), high_conf, 'b')
+    ax1.set_title('High-intensity streaming traffic')
+    ax1.set_xlabel('Time')
+    ax1.set_ylabel('Estimated Confidence')
+
+    plt.show()
+
+    fig2, ax2 = plt.subplots(figsize=(8, 4))
+    ax2.plot(np.arange(0, low_conf.__len__(), step=1), low_conf, 'g')
+    ax2.set_title('Low-intensity streaming traffic')
+    ax2.set_xlabel('Time')
+    ax2.set_ylabel('Estimated confidence')
+
+    plt.show()
+
+    fig3, ax3 = plt.subplots(figsize=(8, 4))
+    ax3.plot(np.arange(0, chat_conf.__len__(), step=1), chat_conf, 'r')
+    ax3.set_title('Text (TCP Chatting) traffic')
+    ax3.set_xlabel('Time')
+    ax3.set_ylabel('Estimated confidence')
+
+    plt.show()
+    """
+
+    fig4, ax4 = plt.subplots(figsize=(8, 6))
+    ax4.plot(threshold_list, fp_rate, 'c')
+    ax4.set_title('FP-Rate Transition')
+    ax4.set_xlabel('threshold')
+    ax4.set_ylabel('False-Positive Rate')
+
+    plt.show()
+    """
 
     exit(0)
