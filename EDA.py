@@ -396,9 +396,21 @@ def fuzzy_inference_engine(skn, skl, psa, fsa, pia, mf, con_mf):
     return confidence
 
 if __name__ == "__main__":
+
     low_flow = pd.DataFrame(get_flow("./data/30sec_server.csv", '10.0.0.1', '10.0.0.2'),
                             columns=["SKN", "SKL", "PSA", "FSA", "PIA"])
 
+    print(low_flow)
+
+    from scipy.io import arff
+    import pandas as pd
+
+    data = arff.loadarff("./data/ISCX/Scenario A1/TimeBasedFeatures-Dataset-15s-VPN.arff")
+    df = pd.DataFrame(data[0])
+
+    print(df.columns)
+
+    """
     high_flow = pd.DataFrame(get_flow("./data/1080_server.csv", '10.0.0.1', '10.0.0.2'),
                              columns=["SKN", "SKL", "PSA", "FSA", "PIA"])
 
@@ -463,7 +475,7 @@ if __name__ == "__main__":
 
     print("정탐률 - ", low_count / low_len)
     print("오탐률 - ", (chat_count + high_count) / (chat_len + high_len))
-
+    """
     """ threshold transition
     fp_rate = []
     threshold_list = np.linspace(50, 69.7, num=340)  # 60, 69.7, num=97
@@ -488,7 +500,7 @@ if __name__ == "__main__":
         print("정탐률 - ", low_count / low_len)
         print("오탐률 - ", (chat_count + high_count) / (chat_len + high_len))
     """
-
+    """
     fig1, ax1 = plt.subplots(figsize=(8, 4))
     ax1.plot(np.arange(0, high_conf.__len__(), step=1), high_conf, 'b')
     ax1.set_title('High-intensity streaming traffic')
@@ -512,6 +524,7 @@ if __name__ == "__main__":
     ax3.set_ylabel('Estimated confidence')
 
     plt.show()
+    """
     """
 
     fig4, ax4 = plt.subplots(figsize=(8, 6))
