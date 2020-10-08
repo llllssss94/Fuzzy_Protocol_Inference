@@ -10,6 +10,8 @@ def dynamic_cal(key, target):   # calculate PF for each packet
     kl = key
     SKL = 0
     SKN = 0
+    if type(target) != str:
+        target = str(target)
 
     for k in kl:
         offset = target.find(k)
@@ -38,12 +40,13 @@ def dynamic_cal(key, target):   # calculate PF for each packet
     return SKL, SKN, len(target) - SKL
 
 
-def get_flow(path, src_ip, dst_ip):
-    data = pd.read_csv(path)
-    raw_data = data.values
-    keywords = extract(i_url=path)[1:]
+def get_flow(d):
+    if len(d) < 1:
+        return 0
+    raw_data = d.values
+    keywords = extract(d=d)[1:]
 
-    print(path, "- len - ", len(raw_data))
+    # print("len - ", len(raw_data))
 
     clean_data = []
     flows = []
@@ -52,14 +55,15 @@ def get_flow(path, src_ip, dst_ip):
     interval = []
     last = 0
     for line in raw_data:
-        if line[2] == src_ip or line[2] == dst_ip:
-            interval.append(line[1]-last)
-            last = line[1]
-            clean_data.append(line)
-
+        interval.append(line[1]-last)
+        last = line[1]
+        clean_data.append(line)
+    # print("interval - ", len(interval))
     # 패킷 평균 전송 간격
+    if len(interval) < 1:
+        return 0
     avg = sum(interval) / len(interval)
-    print(avg)
+    # print("avg interval - ", avg)
 
     diverge = []
 
@@ -80,6 +84,10 @@ def get_flow(path, src_ip, dst_ip):
         prefix = idx + 1
 
     print("## 총 ", len(flows), "개의 flow 발견")
+
+    if len(flows) < 100:
+        return 0
+
 
     # 평균 인터벌  use
     avg_ivl = []
@@ -115,7 +123,7 @@ def get_flow(path, src_ip, dst_ip):
             fsa += tfsa
             ivl = ivl + (line[1]-last)
             last = line[1]
-            payload = payload + line[5]
+            payload = payload + len(str(line[5]))
 
         # 값 입력
         avg_ivl.append(ivl / len(flow))
@@ -130,9 +138,7 @@ def get_flow(path, src_ip, dst_ip):
         elif flow[0][4] == "TCP":
             pcl.append(6)
         """
-    print(sum(avg_pay)/len(avg_pay))
-
-    return (np.array([avg_skn, avg_skl, avg_pay, avg_fsa, avg_ivl])).T   # [avg_ivl, avg_cnt, avg_pay, pcl]
+    return [avg_skn, avg_skl, avg_pay, avg_fsa, avg_ivl]   # [avg_ivl, avg_cnt, avg_pay, pcl]
 
 
 def membership_function(data=pd.DataFrame([]), cols="", sigma=1.0):
@@ -395,20 +401,188 @@ def fuzzy_inference_engine(skn, skl, psa, fsa, pia, mf, con_mf):
 
     return confidence
 
-if __name__ == "__main__":
 
+# for preprocessing only
+def data_process(path):
+    nm = path.split('/')[3]
+    print(nm)
+    data = pd.read_csv(path)
+    src_set = set(data["ip.src"])
+
+    f = open("./processed/nonVPN/" + nm + "_processed.csv" ,'w')
+    f.write(','.join(["SKN", "SKL", "PSA", "FSA", "PIA"]) + "\n")
+
+    # rl = np.array([])
+
+    for ips in src_set:
+        if type(ips) == float:
+            continue
+        dst_set = set(data[data["ip.src"] == ips]["ip.dst"])
+        for ipd in dst_set:
+            data_part = data[data["ip.src"] == ips]
+            data_part = data_part[data_part["ip.dst"] == ipd]
+            tmp = get_flow(data_part)
+            if tmp != 0:
+                print("add")
+                tmp = np.array(tmp).transpose()
+                for line in tmp:
+                    f.write(','.join(map(str, line)) + "\n")
+                """
+                if len(rl) <= 1:
+                    rl = tmp
+                else:
+                    rl = np.hstack((rl, tmp))
+                """
+    f.close()
+    #rl = pd.DataFrame(rl.transpose(), columns=['ivl', 'cnt', 'pay', 'pcl'])
+    #rl.to_csv("./processed/nonVPN/" + nm + "_processed.csv", index=False)
+
+def do_inferece(nm = 0, thresh = 65, sigma = 1):
+
+    target_nm = nm
+    class_nm = ['Chat', 'Email', 'FileTransfer', 'P2P', 'Streaming', 'VoIP']
+
+    import time
+    start = time.time() # learning start
+
+    mf_list = []
+    conmf_list = []
+
+    oposit_data = []
+
+    for i in range(len(class_nm)):
+        target_data = pd.read_csv("./processed/" + class_nm[i] + "_processed.csv") # , columns=["SKN", "SKL", "PSA", "FSA", "PIA"]
+        mf_list.append(make_membership(data=target_data, sigma=sigma))
+        conmf_list.append(membership_function(data=target_data, cols="CON"))
+
+    end = time.time()   # learning end
+    print(end - start)
+
+    for i in range(len(class_nm)):
+        if i == target_nm:
+            target_data = pd.read_csv("./processed/" + class_nm[i] + "_processed.csv").values
+            print(target_data)
+        else:
+            oposit_data.extend(pd.read_csv("./processed/" + class_nm[i] + "_processed.csv").values)
+    print(len(oposit_data))
+
+    target_data = pd.DataFrame(target_data, columns=["SKN", "SKL", "PSA", "FSA", "PIA"])
+    oposit_data = pd.DataFrame(oposit_data, columns=["SKN", "SKL", "PSA", "FSA", "PIA"])
+
+
+    print("\n" + class_nm[target_nm] + "Flow ---------------------------------------------------------")
+    target_count = 0
+    target_conf = []
+    target_len = target_data.values.__len__()
+    for flow in target_data.values:
+        ridx = 0
+        conf = 0
+        for idx in range(len(mf_list)):
+            tmp = fuzzy_inference_engine(flow[0], flow[1], flow[2], flow[3], flow[4], mf_list[idx], conmf_list[idx])
+            if conf < tmp:
+                conf = tmp
+                ridx = idx
+        if ridx == target_nm:
+            target_count += 1
+            target_conf.append(conf)
+
+    print("Declare - ", target_count)
+    print("Rate - ", target_count / target_len)
+    print("Confidence - ", np.average(target_conf))
+
+    print("\nOposit Flow ---------------------------------------------------------")
+    oposit_count = 0
+    oposit_conf = []
+    oposit_len = oposit_data.values.__len__()
+    for flow in oposit_data.values:
+        ridx = 0
+        conf = 0
+        for idx in range(len(mf_list)):
+            tmp = fuzzy_inference_engine(flow[0], flow[1], flow[2], flow[3], flow[4], mf_list[idx], conmf_list[idx])
+            if conf < tmp:
+                conf = tmp
+                ridx = idx
+        if ridx == target_nm:
+            oposit_count += 1
+            oposit_conf.append(conf)
+
+
+    print("Declare - ", oposit_count)
+    print("Rate - ", oposit_count / oposit_len)
+    print("Confidence - ", np.average(oposit_conf))
+
+
+    Precision = target_count / (target_count + oposit_count)
+    Recall = target_count / target_len
+    Accuracy = (target_count + (oposit_len - oposit_count)) / (target_len + oposit_len)
+    F1_Score = 2 * ((Precision * Recall) / (Precision + Recall))
+    print("PP - ", (target_count / target_len))
+    print("FP - ", (oposit_count / oposit_len))
+    print("Precision - ", Precision)
+    print("Recall - ", Recall)
+    print("Accuracy - ", Accuracy)
+    print("F1_Score - ", F1_Score)
+
+    f = open("./result/" + class_nm[target_nm] + "_" + str(thresh) + ".txt", "a+")
+    f.write("PP - " + str((target_count / target_len)) + "\n")
+    f.write("FP - " + str((oposit_count / oposit_len)) + "\n")
+    f.write("Precision - " + str(Precision) + "\n")
+    f.write("Recall - " + str(Recall) + "\n")
+    f.write("Accuracy - " + str(Accuracy) + "\n")
+    f.write("F1_Score - " + str(F1_Score) + "\n")
+
+    f.close()
+
+    fig1, ax1 = plt.subplots(figsize=(8, 4))
+    ax1.plot(np.arange(0, target_conf.__len__(), step=1), target_conf, 'b')
+    ax1.set_title(class_nm[target_nm] + 'Traffic Confidence')
+    ax1.set_xlabel('Time')
+    ax1.set_ylabel('Estimated Confidence')
+
+    plt.show()
+
+    fig2, ax2 = plt.subplots(figsize=(8, 4))
+    ax2.plot(np.arange(0, oposit_conf.__len__(), step=1), oposit_conf, 'g')
+    ax2.set_title('Miss Classified Traffic Confidence')
+    ax2.set_xlabel('Time')
+    ax2.set_ylabel('Estimated confidence')
+
+    plt.show()
+
+
+if __name__ == "__main__":
+    """
     low_flow = pd.DataFrame(get_flow("./data/30sec_server.csv", '10.0.0.1', '10.0.0.2'),
                             columns=["SKN", "SKL", "PSA", "FSA", "PIA"])
 
     print(low_flow)
 
-    from scipy.io import arff
-    import pandas as pd
+    
+    # for origin data only
+    low_flow = get_flow("./30sec_server.csv", '10.0.0.1', '10.0.0.2')
+    high_flow = get_flow("./Datasets/nonVPN/Chat/merge.csv", '131.202.240.87', '10.0.0.2')
+    chat_flow = get_flow("./chat_server.csv", '10.0.0.1', '10.0.0.2')
+    """
 
-    data = arff.loadarff("./data/ISCX/Scenario A1/TimeBasedFeatures-Dataset-15s-VPN.arff")
-    df = pd.DataFrame(data[0])
 
-    print(df.columns)
+    #data_process("./Datasets/nonVPN/Chat/merge.csv")
+    #data_process("./Datasets/nonVPN/Email/merge.csv")
+    #data_process("./Datasets/nonVPN/FileTransfer/merge.csv")
+    #data_process("./Datasets/nonVPN/P2P/merge.csv")
+    #data_process("./Datasets/nonVPN/Streaming/merge.csv")
+    #data_process("./Datasets/nonVPN/VoIP/merge.csv")
+
+
+    do_inferece(nm = 0, thresh = 69) # Chat
+    #do_inferece(nm = 1, thresh = 68) # Email
+    #do_inferece(nm = 2, thresh = 70, sigma=-2) # File
+    #do_inferece(nm = 3, thresh = 69) # P2P
+    #do_inferece(nm = 4, thresh = 69) # Streaming
+    #do_inferece(nm = 5, thresh = 70) # VoIP
+
+
+
+
 
     """
     high_flow = pd.DataFrame(get_flow("./data/1080_server.csv", '10.0.0.1', '10.0.0.2'),

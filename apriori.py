@@ -2,22 +2,33 @@ import pandas as pd
 import numpy as np
 from mlxtend.preprocessing import TransactionEncoder
 from mlxtend.frequent_patterns import apriori
+import time
 
-def load_data(url):
-    raw = pd.read_csv(url)
-    raw = raw["Info"].to_list()
+def load_data(data):
+    if len(data) < 1:
+        return 0, 0
+    raw = data
+    raw = raw["_ws.col.Info"].to_list()
     d = []
 
-    for i in raw:
+    start = time.time()
+    for k, i in enumerate(raw):
+        if type(i) != str:
+            i = str(i)
         t = i.split(" ")
         d.append(t)
+        curr = time.time()
+        if curr - start > 10:
+            break
 
     return d, raw
 
 
-def extract(min_sup=0.4, i_url="./data/chat_server.csv", min_num=1):  # 최소 지지도, 인풋 파일 경로, 최소 조합 수
+def extract(min_sup=0.4, d=[], min_num=1):  # 최소 지지도, 인풋 파일 경로, 최소 조합 수
+    data, raw = load_data(d)
 
-    data, raw = load_data(i_url)
+    if type(data) == int:
+        return 0
 
     te = TransactionEncoder()
 
