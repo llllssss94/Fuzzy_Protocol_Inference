@@ -409,7 +409,7 @@ def data_process(path):
     data = pd.read_csv(path)
     src_set = set(data["ip.src"])
 
-    f = open("./processed/nonVPN/" + nm + "_processed.csv" ,'w')
+    f = open("./processed/VPN/" + nm + "_processed.csv" ,'w')
     f.write(','.join(["SKN", "SKL", "PSA", "FSA", "PIA"]) + "\n")
 
     # rl = np.array([])
@@ -565,15 +565,15 @@ if __name__ == "__main__":
     """
 
 
-    #data_process("./Datasets/nonVPN/Chat/merge.csv")
-    #data_process("./Datasets/nonVPN/Email/merge.csv")
-    #data_process("./Datasets/nonVPN/FileTransfer/merge.csv")
-    #data_process("./Datasets/nonVPN/P2P/merge.csv")
-    #data_process("./Datasets/nonVPN/Streaming/merge.csv")
-    #data_process("./Datasets/nonVPN/VoIP/merge.csv")
+    #data_process("./Datasets/VPN/Chat/merge.csv")
+    #data_process("./Datasets/VPN/Email/merge.csv")
+    #data_process("./Datasets/VPN/FileTransfer/merge.csv")
+    #data_process("./Datasets/VPN/P2P/merge.csv")
+    data_process("./Datasets/VPN/Streaming/merge.csv")
+    #data_process("./Datasets/VPN/VoIP/merge.csv")
 
 
-    do_inferece(nm = 0, thresh = 69) # Chat
+    #do_inferece(nm = 0, thresh = 69) # Chat
     #do_inferece(nm = 1, thresh = 68) # Email
     #do_inferece(nm = 2, thresh = 70, sigma=-2) # File
     #do_inferece(nm = 3, thresh = 69) # P2P

@@ -21,7 +21,7 @@ def load_data(data):
         if curr - start > 10:
             break
 
-    return d, raw
+    return d[:100000], raw
 
 
 def extract(min_sup=0.4, d=[], min_num=1):  # 최소 지지도, 인풋 파일 경로, 최소 조합 수
